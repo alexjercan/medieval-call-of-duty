@@ -1,6 +1,6 @@
 use bevy::{prelude::*, render::mesh::shape::Plane};
-use bevy_renet::{renet::{transport::{ClientAuthentication, NetcodeClientTransport}, RenetClient, ConnectionConfig}, RenetClientPlugin, transport::NetcodeClientPlugin};
-use medieval_call_of_duty::{PROTOCOL_ID, Lobby};
+use bevy_renet::{renet::{transport::{ClientAuthentication, NetcodeClientTransport}, RenetClient, ConnectionConfig, DefaultChannel}, RenetClientPlugin, transport::NetcodeClientPlugin};
+use medieval_call_of_duty::{PROTOCOL_ID, Lobby, ServerMessages};
 use std::{net::UdpSocket, time::SystemTime};
 
 fn main() {
@@ -26,6 +26,7 @@ fn main() {
         .insert_resource(client)
         .insert_resource(transport)
         .add_systems(Startup, setup)
+        .add_systems(Update, handle_server_messages)
         .run();
 }
 
@@ -52,4 +53,39 @@ fn setup(mut commands: Commands, mut meshes: ResMut<Assets<Mesh>>, mut materials
         transform: Transform::from_xyz(-2.0, 2.5, 5.0).looking_at(Vec3::ZERO, Vec3::Y),
         ..Default::default()
     });
+}
+
+fn handle_server_messages(
+    mut commands: Commands,
+    mut meshes: ResMut<Assets<Mesh>>,
+    mut materials: ResMut<Assets<StandardMaterial>>,
+    mut client: ResMut<RenetClient>,
+    mut lobby: ResMut<Lobby>,
+) {
+    while let Some(message) = client.receive_message(DefaultChannel::ReliableOrdered) {
+        let server_message = bincode::deserialize(&message).unwrap();
+        match server_message {
+            ServerMessages::PlayerConnected { id } => {
+                println!("Player {} connected.", id);
+
+                let player_entity = commands
+                    .spawn(PbrBundle {
+                        mesh: meshes.add(Mesh::from(shape::Capsule::default())),
+                        material: materials.add(Color::rgb(0.8, 0.7, 0.6).into()),
+                        transform: Transform::from_xyz(0.0, 1.0, 0.0),
+                        ..Default::default()
+                    })
+                    .id();
+
+                lobby.players.insert(id, player_entity);
+            }
+            ServerMessages::PlayerDisconnected { id } => {
+                println!("Player {} disconnected.", id);
+
+                if let Some(player_entity) = lobby.players.remove(&id) {
+                    commands.entity(player_entity).despawn();
+                }
+            }
+        }
+    }
 }

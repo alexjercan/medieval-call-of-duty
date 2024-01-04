@@ -1,7 +1,12 @@
-use medieval_call_of_duty::{Lobby, PROTOCOL_ID};
+use medieval_call_of_duty::{Lobby, PROTOCOL_ID, ServerMessages};
 use std::{net::UdpSocket, time::SystemTime};
 use bevy::{prelude::*, app::ScheduleRunnerPlugin, utils::Duration};
-use bevy_renet::{RenetServerPlugin, renet::{RenetServer, ConnectionConfig, transport::{NetcodeServerTransport, ServerConfig, ServerAuthentication}}, transport::NetcodeServerPlugin};
+use bevy_renet::{RenetServerPlugin, renet::{RenetServer, ConnectionConfig, transport::{NetcodeServerTransport, ServerConfig, ServerAuthentication}, ServerEvent, ClientId, DefaultChannel}, transport::NetcodeServerPlugin};
+
+#[derive(Debug, Component)]
+struct Player {
+    id: ClientId,
+}
 
 fn main() {
     let public_addr = "127.0.0.1:5000".parse().unwrap();
@@ -30,8 +35,47 @@ fn main() {
         .insert_resource(server)
         .insert_resource(transport)
         .add_systems(Startup, setup)
+        .add_systems(Update, handle_server_events)
         .run();
 }
 
 fn setup(mut commands: Commands) {
+
+}
+
+fn handle_server_events(
+    mut commands: Commands,
+    mut events: EventReader<ServerEvent>,
+    mut lobby: ResMut<Lobby>,
+    mut server: ResMut<RenetServer>
+) {
+    for event in events.read() {
+        match event {
+            ServerEvent::ClientConnected { client_id } => {
+                println!("Client connected: {}", client_id);
+
+                let player_entity = commands.spawn(Player { id: *client_id }).id();
+
+                for (id, _) in lobby.players.iter() {
+                    let message = bincode::serialize(&ServerMessages::PlayerConnected { id: *id }).unwrap();
+                    server.send_message(*client_id, DefaultChannel::ReliableOrdered, message);
+                }
+
+                lobby.players.insert(*client_id, player_entity);
+
+                let message = bincode::serialize(&ServerMessages::PlayerConnected { id: *client_id }).unwrap();
+                server.broadcast_message(DefaultChannel::ReliableOrdered, message);
+            }
+            ServerEvent::ClientDisconnected { client_id, reason } => {
+                println!("Client disconnected: {} ({})", client_id, reason);
+
+                if let Some(player_entity) = lobby.players.remove(client_id) {
+                    commands.entity(player_entity).despawn();
+                }
+
+                let message = bincode::serialize(&ServerMessages::PlayerDisconnected { id: *client_id }).unwrap();
+                server.broadcast_message(DefaultChannel::ReliableOrdered, message);
+            }
+        }
+    }
 }
