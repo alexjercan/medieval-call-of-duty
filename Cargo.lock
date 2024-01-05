@@ -2323,6 +2323,7 @@ dependencies = [
  "bevy",
  "bevy_renet",
  "bincode",
+ "log",
  "serde",
 ]
 

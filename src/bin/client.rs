@@ -1,12 +1,24 @@
 use bevy::{prelude::*, render::mesh::shape::Plane};
-use bevy_renet::{renet::{transport::{ClientAuthentication, NetcodeClientTransport}, RenetClient, ConnectionConfig, DefaultChannel}, RenetClientPlugin, transport::NetcodeClientPlugin};
-use medieval_call_of_duty::{PROTOCOL_ID, Lobby, ServerMessages};
+use bevy_renet::{
+    renet::{
+        transport::{ClientAuthentication, NetcodeClientTransport},
+        RenetClient,
+    },
+    transport::NetcodeClientPlugin,
+    RenetClientPlugin,
+};
+use log::debug;
+use medieval_call_of_duty::{
+    connection_config, Character, Lobby, Player, ServerChannel, ServerMessages, PROTOCOL_ID,
+};
 use std::{net::UdpSocket, time::SystemTime};
 
 fn main() {
     let server_addr = "127.0.0.1:5000".parse().unwrap();
     let socket = UdpSocket::bind("127.0.0.1:0").unwrap();
-    let current_time = SystemTime::now().duration_since(SystemTime::UNIX_EPOCH).unwrap();
+    let current_time = SystemTime::now()
+        .duration_since(SystemTime::UNIX_EPOCH)
+        .unwrap();
     let client_id = current_time.as_millis() as u64;
     let authentication = ClientAuthentication::Unsecure {
         client_id,
@@ -16,7 +28,7 @@ fn main() {
     };
 
     let transport = NetcodeClientTransport::new(current_time, authentication, socket).unwrap();
-    let client = RenetClient::new(ConnectionConfig::default());
+    let client = RenetClient::new(connection_config());
 
     App::new()
         .add_plugins(DefaultPlugins)
@@ -31,7 +43,11 @@ fn main() {
 }
 
 /// set up a simple 3D scene
-fn setup(mut commands: Commands, mut meshes: ResMut<Assets<Mesh>>, mut materials: ResMut<Assets<StandardMaterial>>) {
+fn setup(
+    mut commands: Commands,
+    mut meshes: ResMut<Assets<Mesh>>,
+    mut materials: ResMut<Assets<StandardMaterial>>,
+) {
     // plane
     commands.spawn(PbrBundle {
         mesh: meshes.add(Mesh::from(Plane::from_size(5.0))),
@@ -62,20 +78,13 @@ fn handle_server_messages(
     mut client: ResMut<RenetClient>,
     mut lobby: ResMut<Lobby>,
 ) {
-    while let Some(message) = client.receive_message(DefaultChannel::ReliableOrdered) {
+    while let Some(message) = client.receive_message(ServerChannel::ServerMessages) {
         let server_message = bincode::deserialize(&message).unwrap();
         match server_message {
             ServerMessages::PlayerConnected { id } => {
-                println!("Player {} connected.", id);
+                debug!("Player {} connected.", id);
 
-                let player_entity = commands
-                    .spawn(PbrBundle {
-                        mesh: meshes.add(Mesh::from(shape::Capsule::default())),
-                        material: materials.add(Color::rgb(0.8, 0.7, 0.6).into()),
-                        transform: Transform::from_xyz(0.0, 1.0, 0.0),
-                        ..Default::default()
-                    })
-                    .id();
+                let player_entity = commands.spawn(Player { id }).id();
 
                 lobby.players.insert(id, player_entity);
             }
@@ -84,6 +93,38 @@ fn handle_server_messages(
 
                 if let Some(player_entity) = lobby.players.remove(&id) {
                     commands.entity(player_entity).despawn();
+                }
+            }
+            ServerMessages::PlayerCreate {
+                entity: _,
+                id,
+                translation,
+            } => {
+                debug!("Player {} created.", id);
+
+                let character_entity = commands
+                    .spawn((
+                        Character { id },
+                        PbrBundle {
+                            mesh: meshes.add(Mesh::from(shape::Capsule::default())),
+                            material: materials.add(Color::rgb(0.8, 0.7, 0.6).into()),
+                            transform: Transform::from_xyz(
+                                translation[0],
+                                translation[1],
+                                translation[2],
+                            ),
+                            ..Default::default()
+                        },
+                    ))
+                    .id();
+
+                lobby.characters.insert(id, character_entity);
+            }
+            ServerMessages::PlayerRemove { id } => {
+                debug!("Player {} removed.", id);
+
+                if let Some(character_entity) = lobby.characters.remove(&id) {
+                    commands.entity(character_entity).despawn();
                 }
             }
         }
