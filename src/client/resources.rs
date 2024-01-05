@@ -5,4 +5,3 @@ use std::collections::HashMap;
 pub struct Lobby {
     pub entities: HashMap<Entity, Entity>,
 }
-

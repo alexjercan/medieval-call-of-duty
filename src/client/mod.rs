@@ -9,14 +9,14 @@ use bevy::prelude::*;
 use bevy_renet::{
     renet::{
         transport::{ClientAuthentication, NetcodeClientTransport},
-        RenetClient
+        RenetClient,
     },
     transport::NetcodeClientPlugin,
     RenetClientPlugin,
 };
 use std::{net::UdpSocket, time::SystemTime};
 
-use crate::{PROTOCOL_ID, connection_config};
+use crate::{connection_config, PROTOCOL_ID};
 
 // TODO: Parameterize this with: ip, etc.
 pub struct ClientPlugin;
@@ -39,8 +39,7 @@ impl Plugin for ClientPlugin {
         let transport = NetcodeClientTransport::new(current_time, authentication, socket).unwrap();
         let client = RenetClient::new(connection_config());
 
-        app
-            .add_plugins(DefaultPlugins)
+        app.add_plugins(DefaultPlugins)
             .add_plugins(RenetClientPlugin)
             .add_plugins(NetcodeClientPlugin)
             .init_resource::<Lobby>()

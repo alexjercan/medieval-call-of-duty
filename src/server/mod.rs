@@ -5,18 +5,21 @@ mod systems;
 use resources::*;
 use systems::*;
 
-use bevy::{prelude::*, app::ScheduleRunnerPlugin};
+use bevy::{app::ScheduleRunnerPlugin, prelude::*};
 use bevy_renet::{
     renet::{
         transport::{NetcodeServerTransport, ServerAuthentication, ServerConfig},
-        RenetServer
+        RenetServer,
     },
     transport::NetcodeServerPlugin,
     RenetServerPlugin,
 };
-use std::{net::UdpSocket, time::{SystemTime, Duration}};
+use std::{
+    net::UdpSocket,
+    time::{Duration, SystemTime},
+};
 
-use crate::{PROTOCOL_ID, connection_config};
+use crate::{connection_config, PROTOCOL_ID};
 
 // TODO: Parameterize this with: max_clients, etc.
 pub struct ServerPlugin;

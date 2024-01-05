@@ -4,6 +4,7 @@ use super::components::*;
 use super::resources::*;
 use bevy::prelude::*;
 use bevy_renet::renet::{RenetServer, ServerEvent};
+use std::collections::hash_map::Entry;
 
 // TODO: Create the world using rapier
 pub fn setup() {}
@@ -56,11 +57,11 @@ pub fn handle_spawn_players(
     player_query: Query<&Player>,
 ) {
     for player in player_query.iter() {
-        if !lobby.characters.contains_key(&player.id) {
+        if let Entry::Vacant(entry) = lobby.characters.entry(player.id) {
             // TODO: Add controller, health, etc.
             let character_entity = commands.spawn(Character).id();
 
-            lobby.characters.insert(player.id, character_entity);
+            entry.insert(character_entity);
 
             // TODO: Send initial state (probably random transform)
             let message = bincode::serialize(&ServerMessage::EntityCreate {
