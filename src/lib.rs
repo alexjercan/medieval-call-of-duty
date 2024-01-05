@@ -1,25 +1,12 @@
+pub mod server;
+pub mod client;
+
 use bevy::prelude::*;
 use bevy_renet::renet::{ChannelConfig, ClientId, ConnectionConfig, SendType};
 use serde::{Deserialize, Serialize};
-use std::{collections::HashMap, time::Duration};
+use std::time::Duration;
 
 pub const PROTOCOL_ID: u64 = 0;
-
-#[derive(Debug, Component)]
-pub struct Player {
-    pub id: ClientId,
-}
-
-#[derive(Debug, Component)]
-pub struct Character {
-    pub id: ClientId,
-}
-
-#[derive(Debug, Default, Resource)]
-pub struct Lobby {
-    pub players: HashMap<ClientId, Entity>,
-    pub characters: HashMap<ClientId, Entity>,
-}
 
 #[derive(Debug, Default, Clone, Copy, Serialize, Deserialize, Component, Resource)]
 pub struct PlayerMoveInput {
@@ -33,26 +20,31 @@ pub enum ClientChannel {
     MoveInput,
 }
 
+#[derive(Debug, Serialize, Deserialize)]
+pub enum EntityType {
+    Character,
+}
+
 #[derive(Debug, Serialize, Deserialize, Component)]
-pub enum ServerMessages {
+pub enum ServerMessage {
     PlayerConnected {
         id: ClientId,
     },
     PlayerDisconnected {
         id: ClientId,
     },
-    PlayerCreate {
+    EntityCreate {
+        entity_type: EntityType,
         entity: Entity,
-        id: ClientId,
         translation: [f32; 3],
     },
-    PlayerRemove {
-        id: ClientId,
+    EntityRemove {
+        entity: Entity,
     },
 }
 
 pub enum ServerChannel {
-    ServerMessages,
+    ServerMessage,
 }
 
 impl From<ClientChannel> for u8 {
@@ -62,6 +54,7 @@ impl From<ClientChannel> for u8 {
         }
     }
 }
+
 impl ClientChannel {
     pub fn channels_config() -> Vec<ChannelConfig> {
         vec![ChannelConfig {
@@ -77,7 +70,7 @@ impl ClientChannel {
 impl From<ServerChannel> for u8 {
     fn from(channel_id: ServerChannel) -> Self {
         match channel_id {
-            ServerChannel::ServerMessages => 0,
+            ServerChannel::ServerMessage => 0,
         }
     }
 }
@@ -85,7 +78,7 @@ impl From<ServerChannel> for u8 {
 impl ServerChannel {
     pub fn channels_config() -> Vec<ChannelConfig> {
         vec![ChannelConfig {
-            channel_id: Self::ServerMessages.into(),
+            channel_id: Self::ServerMessage.into(),
             max_memory_usage_bytes: 10 * 1024 * 1024,
             send_type: SendType::ReliableOrdered {
                 resend_time: Duration::from_millis(200),
