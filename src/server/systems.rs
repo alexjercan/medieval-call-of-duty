@@ -1,76 +1,56 @@
-use crate::{EntityType, ServerChannel, ServerMessage};
-
-use super::components::*;
 use super::resources::*;
-use bevy::prelude::*;
+use crate::{ServerChannel, ServerMessage};
+use bevy::{gltf::*, prelude::*};
+use bevy_rapier3d::prelude::*;
 use bevy_renet::renet::{RenetServer, ServerEvent};
-use std::collections::hash_map::Entry;
 
-// TODO: Create the world using rapier
-pub fn setup() {}
+pub fn setup(
+    mut commands: Commands,
+    world: ResMut<WorldAssets>,
+    gltf_assets: Res<Assets<Gltf>>,
+    gltf_mesh_assets: Res<Assets<GltfMesh>>,
+    gltf_node_assets: Res<Assets<GltfNode>>,
+    mesh_assets: Res<Assets<Mesh>>,
+) {
+    if let Some(gltf) = gltf_assets.get(&world.playground) {
+        for node in &gltf.nodes {
+            let node = gltf_node_assets.get(node).unwrap();
+            if let Some(gltf_mesh) = node.mesh.clone() {
+                let gltf_mesh = gltf_mesh_assets.get(&gltf_mesh).unwrap();
+                for mesh_primitive in &gltf_mesh.primitives {
+                    let mesh = mesh_assets.get(&mesh_primitive.mesh).unwrap();
+                    commands.spawn((
+                        Collider::from_bevy_mesh(mesh, &ComputedColliderShape::TriMesh).unwrap(),
+                        RigidBody::Fixed,
+                        TransformBundle::from_transform(node.transform),
+                    ));
+                }
+            }
+        }
+    }
+}
 
 pub fn handle_server_events(
-    mut commands: Commands,
     mut events: EventReader<ServerEvent>,
-    mut lobby: ResMut<Lobby>,
     mut server: ResMut<RenetServer>,
 ) {
     for event in events.read() {
         match event {
             ServerEvent::ClientConnected { client_id } => {
-                debug!("Client connected: {}", client_id);
-
-                let player_entity = commands.spawn(Player { id: *client_id }).id();
-
-                for (id, _) in lobby.players.iter() {
-                    let message =
-                        bincode::serialize(&ServerMessage::PlayerConnected { id: *id }).unwrap();
-                    server.send_message(*client_id, ServerChannel::ServerMessage, message);
-                }
-
-                lobby.players.insert(*client_id, player_entity);
+                println!("Client connected: {}", client_id);
 
                 let message =
                     bincode::serialize(&ServerMessage::PlayerConnected { id: *client_id }).unwrap();
                 server.broadcast_message(ServerChannel::ServerMessage, message);
             }
             ServerEvent::ClientDisconnected { client_id, reason } => {
-                debug!("Client disconnected: {} ({})", client_id, reason);
-
-                if let Some(player_entity) = lobby.players.remove(client_id) {
-                    commands.entity(player_entity).despawn();
-                }
+                println!("Client disconnected: {} ({})", client_id, reason);
 
                 let message =
                     bincode::serialize(&ServerMessage::PlayerDisconnected { id: *client_id })
                         .unwrap();
                 server.broadcast_message(ServerChannel::ServerMessage, message);
             }
-        }
-    }
-}
-
-pub fn handle_spawn_players(
-    mut commands: Commands,
-    mut lobby: ResMut<Lobby>,
-    mut server: ResMut<RenetServer>,
-    player_query: Query<&Player>,
-) {
-    for player in player_query.iter() {
-        if let Entry::Vacant(entry) = lobby.characters.entry(player.id) {
-            // TODO: Add controller, health, etc.
-            let character_entity = commands.spawn(Character).id();
-
-            entry.insert(character_entity);
-
-            // TODO: Send initial state (probably random transform)
-            let message = bincode::serialize(&ServerMessage::EntityCreate {
-                entity_type: EntityType::Character,
-                entity: character_entity,
-                translation: [0.0, 0.0, 0.0],
-            })
-            .unwrap();
-            server.broadcast_message(ServerChannel::ServerMessage, message);
         }
     }
 }

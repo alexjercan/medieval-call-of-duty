@@ -2,10 +2,10 @@ mod components;
 mod resources;
 mod systems;
 
-use resources::*;
-use systems::*;
-
+use crate::{connection_config, PROTOCOL_ID};
 use bevy::prelude::*;
+use bevy_asset_loader::prelude::*;
+use bevy_rapier3d::prelude::*;
 use bevy_renet::{
     renet::{
         transport::{ClientAuthentication, NetcodeClientTransport},
@@ -14,9 +14,16 @@ use bevy_renet::{
     transport::NetcodeClientPlugin,
     RenetClientPlugin,
 };
+use resources::*;
 use std::{net::UdpSocket, time::SystemTime};
+use systems::*;
 
-use crate::{connection_config, PROTOCOL_ID};
+#[derive(Clone, Eq, PartialEq, Debug, Hash, Default, States)]
+enum ClientStates {
+    #[default]
+    AssetLoading,
+    Playing,
+}
 
 // TODO: Parameterize this with: ip, etc.
 pub struct ClientPlugin;
@@ -42,10 +49,24 @@ impl Plugin for ClientPlugin {
         app.add_plugins(DefaultPlugins)
             .add_plugins(RenetClientPlugin)
             .add_plugins(NetcodeClientPlugin)
-            .init_resource::<Lobby>()
+            .add_plugins(RapierPhysicsPlugin::<NoUserData>::default())
+            .add_state::<ClientStates>()
+            .add_loading_state(
+                LoadingState::new(ClientStates::AssetLoading)
+                    .continue_to_state(ClientStates::Playing)
+                    .load_collection::<WorldAssets>(),
+            )
+            .insert_resource(AmbientLight {
+                color: Color::WHITE,
+                brightness: 0.5,
+            })
             .insert_resource(client)
             .insert_resource(transport)
-            .add_systems(Startup, setup)
-            .add_systems(Update, handle_server_messages);
+            .insert_resource(RapierConfiguration::default())
+            .add_systems(OnEnter(ClientStates::Playing), setup)
+            .add_systems(
+                Update,
+                (handle_server_messages).run_if(in_state(ClientStates::Playing)),
+            );
     }
 }

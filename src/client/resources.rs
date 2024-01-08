@@ -1,7 +1,8 @@
-use bevy::prelude::*;
-use std::collections::HashMap;
+use bevy::{prelude::*, gltf::*};
+use bevy_asset_loader::prelude::*;
 
-#[derive(Debug, Default, Resource)]
-pub struct Lobby {
-    pub entities: HashMap<Entity, Entity>,
+#[derive(AssetCollection, Resource)]
+pub struct WorldAssets {
+    #[asset(path = "playground.glb")]
+    pub playground: Handle<Gltf>,
 }

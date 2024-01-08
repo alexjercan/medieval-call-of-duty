@@ -1,9 +1,8 @@
-use bevy::prelude::*;
-use bevy_renet::renet::ClientId;
-use std::collections::HashMap;
+use bevy::{prelude::*, gltf::*};
+use bevy_asset_loader::prelude::*;
 
-#[derive(Debug, Default, Resource)]
-pub struct Lobby {
-    pub players: HashMap<ClientId, Entity>,
-    pub characters: HashMap<ClientId, Entity>,
+#[derive(AssetCollection, Resource)]
+pub struct WorldAssets {
+    #[asset(path = "playground.glb")]
+    pub playground: Handle<Gltf>,
 }

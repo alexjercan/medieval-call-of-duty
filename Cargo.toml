@@ -17,6 +17,9 @@ opt-level = 3
 
 [dependencies]
 bevy = "0.12.1"
+bevy_rapier3d = "0.23.0"
 bevy_renet = { version = "0.0.10", features = ["serde"] }
+bevy_asset_loader = "0.19.1"
+bevy_fps_controller = "0.2.4"
 serde = { version = "1.0.194", features = ["derive"] }
 bincode = "1.3.3"

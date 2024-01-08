@@ -1,37 +1,37 @@
-use crate::{EntityType, ServerChannel, ServerMessage};
-
-use super::components::*;
 use super::resources::*;
-use bevy::{prelude::*, render::mesh::shape::Plane};
+use crate::{ServerChannel, ServerMessage};
+use bevy::{gltf::*, prelude::*};
+use bevy_rapier3d::prelude::*;
 use bevy_renet::renet::RenetClient;
 
-/// set up a simple 3D scene
 pub fn setup(
     mut commands: Commands,
-    mut meshes: ResMut<Assets<Mesh>>,
-    mut materials: ResMut<Assets<StandardMaterial>>,
+    world: ResMut<WorldAssets>,
+    gltf_assets: Res<Assets<Gltf>>,
+    gltf_mesh_assets: Res<Assets<GltfMesh>>,
+    gltf_node_assets: Res<Assets<GltfNode>>,
+    mesh_assets: Res<Assets<Mesh>>,
 ) {
-    // plane
-    commands.spawn(PbrBundle {
-        mesh: meshes.add(Mesh::from(Plane::from_size(5.0))),
-        material: materials.add(Color::rgb(0.3, 0.5, 0.3).into()),
-        ..Default::default()
-    });
-    // light
-    commands.spawn(PointLightBundle {
-        point_light: PointLight {
-            intensity: 1500.0,
-            shadows_enabled: true,
-            ..Default::default()
-        },
-        transform: Transform::from_xyz(4.0, 8.0, 4.0),
-        ..Default::default()
-    });
-    // camera
-    commands.spawn(Camera3dBundle {
-        transform: Transform::from_xyz(-2.0, 2.5, 5.0).looking_at(Vec3::ZERO, Vec3::Y),
-        ..Default::default()
-    });
+    if let Some(gltf) = gltf_assets.get(&world.playground) {
+        let scene = gltf.scenes.first().unwrap().clone();
+
+        commands.spawn(SceneBundle { scene, ..default() });
+
+        for node in &gltf.nodes {
+            let node = gltf_node_assets.get(node).unwrap();
+            if let Some(gltf_mesh) = node.mesh.clone() {
+                let gltf_mesh = gltf_mesh_assets.get(&gltf_mesh).unwrap();
+                for mesh_primitive in &gltf_mesh.primitives {
+                    let mesh = mesh_assets.get(&mesh_primitive.mesh).unwrap();
+                    commands.spawn((
+                        Collider::from_bevy_mesh(mesh, &ComputedColliderShape::TriMesh).unwrap(),
+                        RigidBody::Fixed,
+                        TransformBundle::from_transform(node.transform),
+                    ));
+                }
+            }
+        }
+    }
 }
 
 pub fn handle_server_messages(
@@ -39,48 +39,15 @@ pub fn handle_server_messages(
     mut meshes: ResMut<Assets<Mesh>>,
     mut materials: ResMut<Assets<StandardMaterial>>,
     mut client: ResMut<RenetClient>,
-    mut lobby: ResMut<Lobby>,
 ) {
     while let Some(message) = client.receive_message(ServerChannel::ServerMessage) {
         let server_message = bincode::deserialize(&message).unwrap();
         match server_message {
             ServerMessage::PlayerConnected { id } => {
-                debug!("Player {} connected.", id);
+                println!("Player {} connected.", id);
             }
             ServerMessage::PlayerDisconnected { id } => {
                 println!("Player {} disconnected.", id);
-            }
-            ServerMessage::EntityCreate {
-                entity_type: EntityType::Character,
-                entity,
-                translation,
-            } => {
-                debug!("Character {:?} created.", entity);
-
-                let character_entity = commands
-                    .spawn((
-                        NetworkEntity { id: entity },
-                        PbrBundle {
-                            mesh: meshes.add(Mesh::from(shape::Capsule::default())),
-                            material: materials.add(Color::rgb(0.8, 0.7, 0.6).into()),
-                            transform: Transform::from_xyz(
-                                translation[0],
-                                translation[1],
-                                translation[2],
-                            ),
-                            ..Default::default()
-                        },
-                    ))
-                    .id();
-
-                lobby.entities.insert(entity, character_entity);
-            }
-            ServerMessage::EntityRemove { entity } => {
-                debug!("Entity {:?} removed.", entity);
-
-                if let Some(entity) = lobby.entities.remove(&entity) {
-                    commands.entity(entity).despawn();
-                }
             }
         }
     }

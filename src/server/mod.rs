@@ -4,8 +4,8 @@ mod systems;
 
 use resources::*;
 use systems::*;
-
-use bevy::{app::ScheduleRunnerPlugin, prelude::*};
+use bevy_asset_loader::prelude::*;
+use bevy::{app::ScheduleRunnerPlugin, prelude::*, winit::WinitPlugin};
 use bevy_renet::{
     renet::{
         transport::{NetcodeServerTransport, ServerAuthentication, ServerConfig},
@@ -20,6 +20,13 @@ use std::{
 };
 
 use crate::{connection_config, PROTOCOL_ID};
+
+#[derive(Clone, Eq, PartialEq, Debug, Hash, Default, States)]
+enum ServerStates {
+    #[default]
+    AssetLoading,
+    Playing,
+}
 
 // TODO: Parameterize this with: max_clients, etc.
 pub struct ServerPlugin;
@@ -42,15 +49,24 @@ impl Plugin for ServerPlugin {
         let transport = NetcodeServerTransport::new(server_config, socket).unwrap();
         let server = RenetServer::new(connection_config());
 
-        app.add_plugins(MinimalPlugins.set(ScheduleRunnerPlugin::run_loop(
-            Duration::from_secs_f64(1.0 / 60.0),
-        )))
-        .add_plugins(RenetServerPlugin)
-        .add_plugins(NetcodeServerPlugin)
-        .init_resource::<Lobby>()
-        .insert_resource(server)
-        .insert_resource(transport)
-        .add_systems(Startup, setup)
-        .add_systems(Update, (handle_server_events, handle_spawn_players));
+        app.add_plugins(DefaultPlugins.build().disable::<WinitPlugin>())
+            .add_plugins(ScheduleRunnerPlugin::run_loop(Duration::from_secs_f64(
+                1.0 / 60.0,
+            )))
+            .add_plugins(RenetServerPlugin)
+            .add_plugins(NetcodeServerPlugin)
+            .add_state::<ServerStates>()
+            .add_loading_state(
+                LoadingState::new(ServerStates::AssetLoading)
+                    .continue_to_state(ServerStates::Playing)
+                    .load_collection::<WorldAssets>(),
+            )
+            .insert_resource(server)
+            .insert_resource(transport)
+            .add_systems(OnEnter(ServerStates::Playing), setup)
+            .add_systems(
+                Update,
+                (handle_server_events).run_if(in_state(ServerStates::Playing)),
+            );
     }
 }

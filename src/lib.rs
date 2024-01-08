@@ -20,26 +20,18 @@ pub enum ClientChannel {
     MoveInput,
 }
 
-#[derive(Debug, Serialize, Deserialize)]
+#[derive(Debug, Clone, Serialize, Deserialize)]
 pub enum EntityType {
     Character,
 }
 
-#[derive(Debug, Serialize, Deserialize, Component)]
+#[derive(Debug, Clone, Serialize, Deserialize, Component)]
 pub enum ServerMessage {
     PlayerConnected {
         id: ClientId,
     },
     PlayerDisconnected {
         id: ClientId,
-    },
-    EntityCreate {
-        entity_type: EntityType,
-        entity: Entity,
-        translation: [f32; 3],
-    },
-    EntityRemove {
-        entity: Entity,
     },
 }
 
