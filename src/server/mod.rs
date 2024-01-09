@@ -61,12 +61,13 @@ impl Plugin for ServerPlugin {
                     .continue_to_state(ServerStates::Playing)
                     .load_collection::<WorldAssets>(),
             )
+            .init_resource::<ServerLobby>()
             .insert_resource(server)
             .insert_resource(transport)
             .add_systems(OnEnter(ServerStates::Playing), setup)
             .add_systems(
                 Update,
-                (handle_server_events).run_if(in_state(ServerStates::Playing)),
+                (handle_server_events, handle_client_messages).run_if(in_state(ServerStates::Playing)),
             );
     }
 }

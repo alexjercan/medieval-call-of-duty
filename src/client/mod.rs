@@ -63,7 +63,7 @@ impl Plugin for ClientPlugin {
             .insert_resource(client)
             .insert_resource(transport)
             .insert_resource(RapierConfiguration::default())
-            .add_systems(OnEnter(ClientStates::Playing), setup)
+            .add_systems(OnEnter(ClientStates::Playing), (setup, initial_spawn))
             .add_systems(
                 Update,
                 (handle_server_messages).run_if(in_state(ClientStates::Playing)),

@@ -8,21 +8,17 @@ use std::time::Duration;
 
 pub const PROTOCOL_ID: u64 = 0;
 
-#[derive(Debug, Default, Clone, Copy, Serialize, Deserialize, Component, Resource)]
-pub struct PlayerMoveInput {
-    pub up: bool,
-    pub down: bool,
-    pub left: bool,
-    pub right: bool,
-}
-
 pub enum ClientChannel {
-    MoveInput,
+    ClientMessage,
 }
 
-#[derive(Debug, Clone, Serialize, Deserialize)]
-pub enum EntityType {
-    Character,
+#[derive(Debug, Clone, Serialize, Deserialize, Component)]
+pub enum ClientMessage {
+    SpawnMe,
+}
+
+pub enum ServerChannel {
+    ServerMessage,
 }
 
 #[derive(Debug, Clone, Serialize, Deserialize, Component)]
@@ -33,16 +29,20 @@ pub enum ServerMessage {
     PlayerDisconnected {
         id: ClientId,
     },
-}
-
-pub enum ServerChannel {
-    ServerMessage,
+    SpawnPlayer {
+        server_entity: Entity,
+        position: Vec3,
+    },
+    SpawnHim {
+        server_entity: Entity,
+        position: Vec3,
+    },
 }
 
 impl From<ClientChannel> for u8 {
     fn from(channel_id: ClientChannel) -> Self {
         match channel_id {
-            ClientChannel::MoveInput => 0,
+            ClientChannel::ClientMessage => 0,
         }
     }
 }
@@ -50,10 +50,10 @@ impl From<ClientChannel> for u8 {
 impl ClientChannel {
     pub fn channels_config() -> Vec<ChannelConfig> {
         vec![ChannelConfig {
-            channel_id: Self::MoveInput.into(),
-            max_memory_usage_bytes: 5 * 1024 * 1024,
+            channel_id: Self::ClientMessage.into(),
+            max_memory_usage_bytes: 10 * 1024 * 1024,
             send_type: SendType::ReliableOrdered {
-                resend_time: Duration::ZERO,
+                resend_time: Duration::from_millis(200),
             },
         }]
     }
@@ -85,4 +85,9 @@ pub fn connection_config() -> ConnectionConfig {
         client_channels_config: ClientChannel::channels_config(),
         server_channels_config: ServerChannel::channels_config(),
     }
+}
+
+#[derive(Debug, Clone, Serialize, Deserialize)]
+pub enum EntityType {
+    Character,
 }

@@ -1,5 +1,5 @@
 use super::resources::*;
-use crate::{ServerChannel, ServerMessage};
+use crate::{ServerChannel, ServerMessage, ClientChannel, ClientMessage};
 use bevy::{gltf::*, prelude::*};
 use bevy_rapier3d::prelude::*;
 use bevy_renet::renet::RenetClient;
@@ -34,6 +34,13 @@ pub fn setup(
     }
 }
 
+pub fn initial_spawn(
+    mut client: ResMut<RenetClient>,
+) {
+    let message = bincode::serialize(&ClientMessage::SpawnMe).unwrap();
+    client.send_message(ClientChannel::ClientMessage, message);
+}
+
 pub fn handle_server_messages(
     mut commands: Commands,
     mut meshes: ResMut<Assets<Mesh>>,
@@ -48,6 +55,12 @@ pub fn handle_server_messages(
             }
             ServerMessage::PlayerDisconnected { id } => {
                 println!("Player {} disconnected.", id);
+            }
+            ServerMessage::SpawnPlayer { server_entity, position } => {
+                println!("Spawning player at {:?}", position);
+            }
+            ServerMessage::SpawnHim { server_entity, position } => {
+                println!("Spawning him at {:?}", position);
             }
         }
     }
