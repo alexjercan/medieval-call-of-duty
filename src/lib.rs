@@ -1,5 +1,6 @@
 pub mod client;
 pub mod server;
+pub mod controller;
 
 use bevy::prelude::*;
 use bevy_renet::renet::{ChannelConfig, ClientId, ConnectionConfig, SendType};

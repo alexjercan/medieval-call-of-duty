@@ -5,6 +5,7 @@ mod systems;
 use crate::{connection_config, PROTOCOL_ID};
 use bevy::prelude::*;
 use bevy_asset_loader::prelude::*;
+use crate::controller::FpsControllerPlugin;
 use bevy_rapier3d::prelude::*;
 use bevy_renet::{
     renet::{
@@ -50,6 +51,7 @@ impl Plugin for ClientPlugin {
             .add_plugins(RenetClientPlugin)
             .add_plugins(NetcodeClientPlugin)
             .add_plugins(RapierPhysicsPlugin::<NoUserData>::default())
+            .add_plugins(FpsControllerPlugin)
             .add_state::<ClientStates>()
             .add_loading_state(
                 LoadingState::new(ClientStates::AssetLoading)

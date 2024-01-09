@@ -1,5 +1,6 @@
+use std::f32::consts::TAU;
 use super::resources::*;
-use crate::{ClientChannel, ClientMessage, ServerChannel, ServerMessage};
+use crate::{ClientChannel, ClientMessage, ServerChannel, ServerMessage, controller::*};
 use bevy::{gltf::*, prelude::*};
 use bevy_rapier3d::prelude::*;
 use bevy_renet::renet::RenetClient;
@@ -65,6 +66,19 @@ pub fn handle_server_messages(
                 position,
             } => {
                 println!("Spawning him at {:?}", position);
+
+                let logical_entity = commands.spawn(FpsCharacterController::default()).id();
+
+                commands.spawn((
+                    Camera3dBundle {
+                        projection: Projection::Perspective(PerspectiveProjection {
+                            fov: TAU / 5.0,
+                            ..default()
+                        }),
+                        ..default()
+                    },
+                    RenderPlayer { logical_entity },
+                ));
             }
         }
     }
