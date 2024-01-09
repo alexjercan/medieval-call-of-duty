@@ -2,10 +2,8 @@ mod components;
 mod resources;
 mod systems;
 
-use resources::*;
-use systems::*;
-use bevy_asset_loader::prelude::*;
 use bevy::{app::ScheduleRunnerPlugin, prelude::*, winit::WinitPlugin};
+use bevy_asset_loader::prelude::*;
 use bevy_renet::{
     renet::{
         transport::{NetcodeServerTransport, ServerAuthentication, ServerConfig},
@@ -14,10 +12,12 @@ use bevy_renet::{
     transport::NetcodeServerPlugin,
     RenetServerPlugin,
 };
+use resources::*;
 use std::{
     net::UdpSocket,
     time::{Duration, SystemTime},
 };
+use systems::*;
 
 use crate::{connection_config, PROTOCOL_ID};
 
@@ -67,7 +67,8 @@ impl Plugin for ServerPlugin {
             .add_systems(OnEnter(ServerStates::Playing), setup)
             .add_systems(
                 Update,
-                (handle_server_events, handle_client_messages).run_if(in_state(ServerStates::Playing)),
+                (handle_server_events, handle_client_messages)
+                    .run_if(in_state(ServerStates::Playing)),
             );
     }
 }

@@ -1,7 +1,7 @@
-use bevy::{prelude::*, gltf::*};
-use std::collections::HashMap;
+use bevy::{gltf::*, prelude::*};
 use bevy_asset_loader::prelude::*;
 use bevy_renet::renet::ClientId;
+use std::collections::HashMap;
 
 #[derive(AssetCollection, Resource)]
 pub struct WorldAssets {

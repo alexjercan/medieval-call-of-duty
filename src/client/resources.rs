@@ -1,4 +1,4 @@
-use bevy::{prelude::*, gltf::*};
+use bevy::{gltf::*, prelude::*};
 use bevy_asset_loader::prelude::*;
 use bevy_renet::renet::ClientId;
 
